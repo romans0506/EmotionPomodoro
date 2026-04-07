@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion Pomodoro</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, sans-serif;
+            background: #0f0f0f;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            transition: background 1s;
+        }
+
+        /* setup screen */
+        #setup-screen {
+            text-align: center;
+            padding: 40px;
+        }
+
+        #setup-screen h1 {
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: 4px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        #setup-screen p {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 40px;
+        }
+
+        .setup-card {
+            background: #1a1a1a;
+            border-radius: 16px;
+            padding: 40px;
+            width: 340px;
+        }
+
+        .setup-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            text-align: left;
+        }
+
+        .setup-input {
+            width: 100%;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 48px;
+            font-weight: 300;
+            text-align: center;
+            padding: 16px;
+            margin-bottom: 24px;
+            outline: none;
+        }
+
+        .setup-input:focus {
+            border-color: #555;
+        }
+
+        /* кнопки */
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        .btn:hover { opacity: 0.9; }
+        .btn:active { transform: scale(0.98); }
+
+        .btn-primary {
+            background: #ffffff;
+            color: #0f0f0f;
+        }
+
+        .btn-secondary {
+            background: #1a1a1a;
+            color: #ffffff;
+            border: 1px solid #333;
+            margin-top: 12px;
+        }
+
+        /* timer screen */
+        .container {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .status {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .timer {
+            font-size: 96px;
+            font-weight: 300;
+            letter-spacing: -2px;
+            margin: 20px 0;
+        }
+
+        .session-label {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 48px;
+        }
+
+        .fatigue-bar-wrap {
+            background: #1a1a1a;
+            border-radius: 99px;
+            height: 4px;
+            width: 300px;
+            margin: 0 auto 8px;
+        }
+
+        .fatigue-bar {
+            height: 4px;
+            border-radius: 99px;
+            background: #4ade80;
+            width: 0%;
+            transition: width 1s, background 1s;
+        }
+
+        .fatigue-label {
+            font-size: 12px;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        .emotion {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 48px;
+        }
+
+        .break-info {
+            font-size: 13px;
+            color: #4ade80;
+            margin-bottom: 24px;
+            min-height: 20px;
+        }
+
+        .buttons-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            width: 300px;
+            margin: 0 auto;
+        }
+
+        .buttons-row .btn {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="setup-screen">
+        <h1>Pomodoro</h1>
+        <p>Work without getting tired</p>
+        <div class="setup-card">
+            <div class="setup-label">Work duration (minutes)</div>
+            <input class="setup-input" type="number" id="work-time" value="25" min="1" max="60">
+            <button class="btn btn-primary" onclick="startTimer()">Start session</button>
+        </div>
+    </div>
+
+    <div class="container" id="timer-screen" style="display: none;">
+        <div class="status" id="status">working</div>
+        <div class="timer" id="timer">25:00</div>
+        <div class="session-label" id="session">Session 1</div>
+
+        <div class="fatigue-bar-wrap">
+            <div class="fatigue-bar" id="fatigue-bar"></div>
+        </div>
+        <div class="fatigue-label" id="fatigue-label">Fatigue: 0%</div>
+        <div class="emotion" id="emotion">detecting...</div>
+        <div class="break-info" id="break-info"></div>
+
+        <div class="buttons-row">
+            <button class="btn btn-secondary" onclick="skipBreak()">Skip break</button>
+            <button class="btn btn-secondary" onclick="goBack()">Stop</button>
+        </div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            fetch('http://localhost:8000/reset', { method: 'POST' });
+        }
+
+        async function fetchStatus() {
+            try {
+                const res = await fetch('http://localhost:8000/status');
+                const data = await res.json();
+
+                document.getElementById('timer').textContent = data.time_left;
+                document.getElementById('status').textContent = data.phase;
+                document.getElementById('session').textContent = `Session ${data.session}`;
+                document.getElementById('emotion').textContent = getStatus(data.emotion);
+                document.getElementById('fatigue-label').textContent = `Fatigue: ${data.fatigue}%`;
+                document.getElementById('break-info').textContent = data.break_info;
+
+                const bar = document.getElementById('fatigue-bar');
+                bar.style.width = data.fatigue + '%';
+                bar.style.background = data.fatigue > 50 ? '#f87171' : '#4ade80';
+
+                // меняем цвет фона в зависимости от фазы
+                document.body.style.background = data.phase === 'break' ? '#0a1a0f' : '#0f0f0f';
+
+            } catch (e) {
+                document.getElementById('status').textContent = 'connecting...';
+            }
+        }
+
+        async function skipBreak() {
+            await fetch('http://localhost:8000/skip', { method: 'POST' });
+        }
+
+        function getStatus(emotion){
+            if(emotion === 'happy') return 'Focused'
+            if(emotion === 'sad') return 'Tired'
+            if(emotion === 'angry') return 'Stressed'
+            if(emotion === 'neutral') return 'Focused'
+            if(emotion === 'fear') return 'Cooked'
+            if(emotion === 'disgust') return 'Super Cooked'
+            if(emotion === 'surprise') return 'Either cooked or blessed'
+            return 'Detecting...'
+        }
+
+        async function startTimer() {
+            const minutes = document.getElementById('work-time').value;
+            await fetch('http://localhost:8000/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ minutes: parseInt(minutes) })
+            });
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('timer-screen').style.display = 'block';
+        }
+
+        async function goBack() {
+            await fetch('http://localhost:8000/reset', { method: 'POST' });
+            document.getElementById('timer-screen').style.display = 'none';
+            document.getElementById('setup-screen').style.display = 'block';
+            document.body.style.background = '#0f0f0f';
+        }
+
+        setInterval(fetchStatus, 1000);
+        fetchStatus();
+    </script>
+</body>
+</html>

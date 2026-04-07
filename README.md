@@ -84,23 +84,20 @@ Open `site.html` in your browser, set work duration and click **Start Session**.
 <br />
 
 ## Project Structure
-emotion_pipeline.py  — webcam capture + DeepFace inference pipeline
-pomodoro.py          — pomodoro timer logic and break calculation
-server.py            — FastAPI server, connects all modules via threading
-site.html           — web interface, polls server every second
 
+| File | Description |
+|------|-------------|
+| `emotion_pipeline.py` | Webcam capture + DeepFace inference pipeline |
+| `pomodoro.py` | Pomodoro timer logic and break calculation |
+| `server.py` | FastAPI server, connects all modules via threading |
+| `site.html` | Web interface, polls server every second |
 <br />
 
 ## ML Pipeline
-webcam frame
-↓
-DeepFace.analyze() — CNN inference
-↓
-30-frame rolling average — smoothing
-↓
-fatigue score — sad + angry + fear
-↓
-adaptive break duration
+
+`webcam frame` → `DeepFace.analyze()` → `30-frame rolling average` → `fatigue score` → `adaptive break`
+
+The model runs on every frame in a separate thread, keeping the timer and UI completely unblocked.
 
 
 The model runs on every frame in a separate thread, keeping the timer and UI completely unblocked.
